@@ -12,7 +12,7 @@
       case TagID.Byte:
         return "byte";
       case TagID.Short:
-        return "Short";
+        return "short";
       case TagID.Int:
         return "int";
       case TagID.Long:
