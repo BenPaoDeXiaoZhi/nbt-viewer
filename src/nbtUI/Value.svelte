@@ -68,8 +68,12 @@
     border-radius: 0.3em;
     align-items: center;
   }
+  b {
+    user-select: text;
+  }
   p {
     margin: auto;
+    user-select: text;
   }
   #name {
     margin-right: 1em;
@@ -78,6 +82,7 @@
     cursor: pointer;
     border-radius: 0.2em;
     transition: 0.1s;
+    user-select: none;
   }
   #arrow:hover {
     background-color: rgba(0, 0, 0, 0.2);
