@@ -1,4 +1,4 @@
-enum TagIDSet {
+export enum TagID {
   Empty = 0x00,
   Byte = 0x01,
   Short = 0x02,
@@ -13,85 +13,103 @@ enum TagIDSet {
   IntArray = 0x0b, // 按小端序[仅BE]存储的有符号整型长度，后跟相应个数的有符号整型
 }
 
-type TagType = number | string | bigint | TagType[] | { [n: string]: TagType };
+export type NBTChunkData = {
+  value: TypedValue<NBTType>;
+  name: string;
+};
+
+export type NBTType =
+  | number
+  | string
+  | bigint
+  | TypedValue<NBTType>[]
+  | { [n: string]: TypedValue<NBTType> };
 
 export async function handleFile(file: File) {
   const view = new PointerDataView(await file.arrayBuffer());
-  console.log(readChunk(view));
-  return view;
+  return readChunk(view);
 }
 
-function readChunk(view: PointerDataView, forceTagID?: TagIDSet) {
+function readChunk(view: PointerDataView, forceTagID?: TagID): NBTChunkData {
   const { tagID, name } = readHead(view, forceTagID);
-  let value: TagType | undefined = undefined;
+  let value: NBTType | undefined = undefined;
   switch (tagID) {
-    case TagIDSet.Empty:
-      return { value: null, name: null };
-    case TagIDSet.Byte:
+    case TagID.Empty:
+      value = "";
+      break;
+    case TagID.Byte:
       value = view.getInt8();
       break;
-    case TagIDSet.Short:
+    case TagID.Short:
       value = view.getInt16();
       break;
-    case TagIDSet.Int:
+    case TagID.Int:
       value = view.getInt32();
       break;
-    case TagIDSet.Long:
+    case TagID.Long:
       value = view.getBigInt64();
       break;
-    case TagIDSet.Float:
+    case TagID.Float:
       value = view.getFloat32();
       break;
-    case TagIDSet.Double:
+    case TagID.Double:
       value = view.getFloat64();
       break;
-    case TagIDSet.ByteArray:
+    case TagID.ByteArray:
       break;
-    case TagIDSet.String: {
+    case TagID.String: {
       const length = view.getUint16();
       value = view.getString(length);
       break;
     }
-    case TagIDSet.List: {
+    case TagID.List: {
       value = [];
-      const subTagIDs: TagIDSet = view.getUint8();
+      const subTagIDs: TagID = view.getUint8();
       const length = view.getUint32();
-      console.log(name, "list length", length);
       for (let i = 0; i < length; i++) {
         value.push(readChunk(view, subTagIDs).value!);
       }
       break;
     }
-    case TagIDSet.ComplexObject: {
-      value = Object.create(null) as Record<string, TagType>;
+    case TagID.ComplexObject: {
+      value = Object.create(null) as Record<string, TypedValue<NBTType>>;
       while (1) {
         const { value: subValue, name: subName } = readChunk(view);
-        if (subValue == null) {
+        console.log(value, name);
+        if (subValue.type == TagID.Empty) {
           break;
         }
         value[subName] = subValue;
       }
       break;
     }
-    case TagIDSet.IntArray:
+    case TagID.IntArray:
       break;
   }
-  console.log(value, name);
   if (value === undefined) {
     console.error(view);
     throw new Error(`id:${tagID}`);
   }
-  return { value, name };
+  return { value: new TypedValue(value, tagID), name };
 }
 
-function readHead(view: PointerDataView, forceTagID?: TagIDSet) {
-  const tagID: TagIDSet = forceTagID || view.getUint8(); // ID是表示该标签类型的字节
-  if (tagID == TagIDSet.Empty) {
+function readHead(view: PointerDataView, forceTagID?: TagID) {
+  const tagID: TagID = forceTagID || view.getUint8(); // ID是表示该标签类型的字节
+  if (tagID == TagID.Empty) {
     return { tagID, name: "" };
   }
   const nameLength = forceTagID ? 0 : view.getUint16(); //名称是一个带长字符串，包含一个按小端序[仅BE]存储的无符号短整型
   const name = view.getString(nameLength);
   return { tagID, name };
+}
+
+export class TypedValue<T extends NBTType> {
+  value: T;
+  type: TagID;
+  constructor(value: T, type: TagID) {
+    this.value = value;
+    this.type = type;
+  }
 }
 
 export class PointerDataView<
