@@ -36,7 +36,7 @@
   let readableType = $derived(getUrl(Number(type)));
 </script>
 
-<img src="/ui/Data_node_{readableType}.svg" alt={readableType} />
+<img src="./ui/Data_node_{readableType}.svg" alt={readableType} />
 
 <style>
   img {
